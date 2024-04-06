@@ -1,46 +1,30 @@
 #!/usr/bin/python3
-"""Distribute web static package to web servers
 """
-from fabric.api import *
-from os import path
+Fabric script based on the file 1-pack_web_static.py that distributes an
+archive to the web servers
+"""
 
-env.hosts = ['54.165.39.238', '54.152.134.23']
-env.user = 'ubuntu'
-env.key_filename = '~/.ssh/id_rsa'
+from fabric.api import put, run, env
+from os.path import exists
+env.hosts = ['54.152.134.23', '54.165.39.238']
 
 
 def do_deploy(archive_path):
-    """Deploy web files to server
-    """
-    if not path.exists(archive_path):
+    """distributes an archive to the web servers"""
+    if exists(archive_path) is False:
         return False
-
     try:
-        # Upload archive to /tmp/ directory of web servers
+        file_n = archive_path.split("/")[-1]
+        no_ext = file_n.split(".")[0]
+        path = "/data/web_static/releases/"
         put(archive_path, '/tmp/')
-
-        # Extract archive to /data/web_static/releases/<archive_filename>/
-        archive_filename = archive_path.split('/')[-1]
-        release_folder = '/data/web_static/releases/{}'.format(
-            archive_filename.split('.')[0])
-        run('sudo mkdir -p {}'.format(release_folder))
-        run('sudo tar -xzf /tmp/{} -C {}'.format(archive_filename, release_folder))
-
-        # Remove uploaded archive from web servers
-        run('sudo rm /tmp/{}'.format(archive_filename))
-
-        # Move contents to proper location and remove temporary directory
-        run('sudo mv {}/web_static/* {}'.format(release_folder, release_folder))
-        run('sudo rm -rf {}/web_static'.format(release_folder))
-
-        # Remove existing symbolic link
-        run('sudo rm -rf /data/web_static/current')
-
-        # Create new symbolic link
-        run('sudo ln -s {} /data/web_static/current'.format(release_folder))
-
+        run('mkdir -p {}{}/'.format(path, no_ext))
+        run('tar -xzf /tmp/{} -C {}{}/'.format(file_n, path, no_ext))
+        run('rm /tmp/{}'.format(file_n))
+        run('mv {0}{1}/web_static/* {0}{1}/'.format(path, no_ext))
+        run('rm -rf {}{}/web_static'.format(path, no_ext))
+        run('rm -rf /data/web_static/current')
+        run('ln -s {}{}/ /data/web_static/current'.format(path, no_ext))
         return True
-
-    except Exception as e:
-        print(e)
+    except:
         return False
